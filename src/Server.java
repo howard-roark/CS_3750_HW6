@@ -70,6 +70,10 @@ class ClientThread extends Thread {
     private SSLSession sslSession;
     private BufferedReader in = null;
     private PrintWriter out = null;
+    private PrintWriter toFile;
+
+    private String[] questions = {"User Name: ", "Full Name: ", "Address: ",
+            "Phone Number: ", "Email Address: ", "Would you like to add more users (yes/no): "};
 
     /**
      * Constructor for ClientThread, taking in the client socket connection
@@ -92,34 +96,42 @@ class ClientThread extends Thread {
             in = new BufferedReader(new InputStreamReader(this.sslSocket
                     .getInputStream()));
             out = new PrintWriter(this.sslSocket.getOutputStream(), true);
+            toFile = new PrintWriter(new BufferedWriter(new FileWriter("users.txt", true)));
+
+            String fromClient;
+            int i = 0;
+            out.println(questions[i]);
+
+            while (((fromClient = in.readLine()) != null) && ( i < questions.length)) {
+                if (i == 5) {
+                    if (fromClient.equals("yes")) {
+                        i = -1;
+                    } else {
+                        break;
+                    }
+                } else {
+                    try {
+                        synchronized (toFile) {
+                            if (i == 0) {
+                                toFile.println("\nNEW USER STARTS HERE:");
+                            }
+                            toFile.println(questions[i] + " --> " + fromClient);
+                        }
+                    } catch (Exception e) {
+                        Logger.getLogger(ClientThread.class.getName()).log(Level.ALL, "File was not able to be written to");
+                        System.out.println("File was not able to be written to");
+                    }
+                }
+                i++;
+                out.println(questions[i]);
+            }
+            this.sslSocket.close();
+            toFile.close();
         } catch (IOException ex) {
             Logger.getLogger(ClientThread.class.getName()).log(Level.ALL, "Error in reader or writer", ex);
         }
 
-        String[] questions = {"User Name: ", "Full Name: ", "Address: ",
-                "Phone Number: ", "Email Address: ", "Would you like to add more users (yes/no): "};
-
-        out.println("Connected...");
-        for (String q : questions) {
-            out.println(q);
-            while (in == null) {
-                if (in != null) {
-                    try {
-                        PrintWriter toFile = new PrintWriter(new BufferedWriter(new FileWriter("users.txt", true)));
-                        synchronized (toFile) {
-                            toFile.println(q + " --> " + in.readLine());
-                            toFile.close();
-                        }
-                    } catch (IOException ioe) {
-                        Logger.getLogger(ClientThread.class.getName()).log(Level.ALL, "File was not able to be written to");
-                    }
-                    break;
-                }
-            }
-        }
-
-        System.out.println("Connection Successful...\n\t"
-                + "Peer Host: " + sslSession.getPeerHost() + "\n\t"
+        System.out.println("Peer Host: " + sslSession.getPeerHost() + "\n\t"
                 + "Cypher Suite: " + sslSession.getCipherSuite() + "\n\t"
                 + "Protocol: " + sslSession.getProtocol() + "\n\t"
                 + "Session ID: " + sslSession.getId() + "\n\t"

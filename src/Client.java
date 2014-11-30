@@ -8,14 +8,11 @@ import java.io.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class Client implements Runnable {
+public class Client {
 
     private static BufferedReader reader = null;//Read user input
     private static PrintStream outClient = null;//Send user input to server
     private static BufferedReader inClient = null;//Read response from server
-    private static String toSend;
-    private static String response = "";
-    private static boolean closed = false;
 
     public static void main(String[] args) {
         String error = "Please ensure the ip/dns address entered is correct, as" +
@@ -30,18 +27,16 @@ public class Client implements Runnable {
                 inClient = new BufferedReader(new InputStreamReader(sslsocket.getInputStream()));
                 reader = new BufferedReader(new InputStreamReader(System.in));
 
-                //Start new thread to listen for response from server without clogging main thread
-                new Thread(new Client()).start();
 
-                /*
-                Infinite loop to respond to the server
-                 */
-                while (true) {
-                    toSend = reader.readLine();
-                    if (toSend.length() != 0) {
-                        outClient.println(toSend);
-                        if ((response.equals("Would you like to add more users (yes/no): ")) &&
-                                (!toSend.equals("yes"))) {
+                String fromServer, fromUser;
+                while ((fromServer = inClient.readLine()) != null) {
+                    System.out.println(fromServer);
+
+                    fromUser = reader.readLine();
+                    if (fromServer != null) {
+                        outClient.println(fromUser);
+                        if ((fromServer.equals("Would you like to add more users (yes/no): "))
+                                && (!fromUser.equals("yes"))) {
                             break;
                         }
                     }
@@ -50,7 +45,6 @@ public class Client implements Runnable {
                /*
                User has decided to end the program
                 */
-                closed = true;
                 outClient.close();
                 inClient.close();
                 sslsocket.close();
@@ -61,25 +55,6 @@ public class Client implements Runnable {
         } else {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, error);
             System.exit(1);
-        }
-    }
-
-    @Override
-    public void run() {
-        /*
-        If the connection is not closed continue to listen for output from the server.
-         */
-        while (!closed) {
-            try {
-                response = inClient.readLine();
-                if (response != null && response.length() != 0) {
-                    System.out.println(response);
-                    outClient.print(reader.readLine());
-                }
-            } catch (IOException ioe) {
-                Logger.getLogger(Client.class.getName()).log(Level.SEVERE, "Error reading response from server: " + ioe);
-                System.exit(1);
-            }
         }
     }
 }
